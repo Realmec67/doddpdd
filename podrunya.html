@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Тебе сообщение</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Подключаем GSAP для плавных анимаций -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <style>
+    :root {
+      --bg-1: #cad6e2;
+      --bg-2: #dde7f0;
+      --bg-3: #d2dcef;
+      --card-bg: rgba(255, 255, 255, 0.62);
+      --card-border: rgba(255, 255, 255, 0.85);
+      --text-main: #253342;
+      --text-muted: #5e7185;
+      --btn-primary: #466074;
+      --btn-secondary: rgba(255, 255, 255, 0.78);
+      --shadow-soft: 0 16px 40px rgba(37, 51, 66, 0.09);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: linear-gradient(135deg, var(--bg-1) 0%, var(--bg-2) 50%, var(--bg-3) 100%);
+      color: var(--text-main);
+    }
+
+    /* Фоновые мягкие холодные блики */
+    .ambient-orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(55px);
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.65;
+    }
+    .orb-1 {
+      width: 260px;
+      height: 260px;
+      background: #b5c7df;
+      top: -60px;
+      left: -60px;
+    }
+    .orb-2 {
+      width: 300px;
+      height: 300px;
+      background: #c5cbe8;
+      bottom: -80px;
+      right: -60px;
+    }
+
+    /* Темная подложка для финала */
+    #darkOverlay {
+      position: fixed;
+      inset: 0;
+      background: #05070a;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 20;
+    }
+
+    /* Контейнеры экранов */
+    .screen {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      opacity: 0;
+      visibility: hidden;
+      z-index: 5;
+      will-change: transform, opacity, filter;
+    }
+
+    .screen.initial-active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    /* Центральная карточка */
+    .center-box {
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--card-border);
+      border-radius: 26px;
+      padding: 34px 24px;
+      width: 100%;
+      max-width: 360px;
+      text-align: center;
+      box-shadow: var(--shadow-soft);
+      z-index: 10;
+      will-change: transform;
+    }
+
+    h1 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      line-height: 1.35;
+      margin-bottom: 12px;
+      color: var(--text-main);
+      letter-spacing: -0.01em;
+    }
+
+    .timer-text {
+      font-size: 0.92rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Полоска таймера */
+    .timer-bar-wrap {
+      width: 100%;
+      height: 5px;
+      background: rgba(70, 96, 116, 0.14);
+      border-radius: 6px;
+      overflow: hidden;
+      margin-bottom: 28px;
+    }
+
+    .timer-bar {
+      height: 100%;
+      width: 100%;
+      background: var(--btn-primary);
+      border-radius: 6px;
+      transform-origin: left center;
+    }
+
+    /* Группа кнопок */
+    .btn-group {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      min-height: 54px;
+      position: relative;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      border: none;
+      outline: none;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.98rem;
+      font-weight: 600;
+      padding: 13px 28px;
+      border-radius: 16px;
+      box-shadow: 0 6px 16px rgba(37, 51, 66, 0.1);
+      will-change: transform;
+      touch-action: manipulation;
+    }
+
+    .btn-primary {
+      background: var(--btn-primary);
+      color: #f8fafc;
+    }
+
+    .btn-secondary {
+      background: var(--btn-secondary);
+      color: var(--text-main);
+      border: 1px solid rgba(37, 51, 66, 0.08);
+    }
+
+    #yesBtn.runaway {
+      position: fixed;
+      left: 0;
+      top: 0;
+      z-index: 999;
+      margin: 0;
+    }
+
+    .btn-placeholder {
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    /* Второй экран: плавающие таблички по краям */
+    .tags-container {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 2;
+    }
+
+    .support-tag {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.65);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.88);
+      color: #354759;
+      padding: 11px 16px;
+      border-radius: 16px;
+      font-size: 0.84rem;
+      font-weight: 600;
+      max-width: 44vw;
+      text-align: center;
+      box-shadow: 0 8px 24px rgba(37, 51, 66, 0.07);
+      opacity: 0;
+      will-change: transform, opacity;
+    }
+
+    .tag-1 { top: 7%; left: 5%; }
+    .tag-2 { top: 9%; right: 5%; }
+    .tag-3 { top: 23%; left: 7%; }
+    .tag-4 { bottom: 23%; right: 6%; }
+    .tag-5 { bottom: 9%; left: 6%; }
+    .tag-6 { bottom: 7%; right: 5%; }
+
+    /* Четвертый экран (Финальное затухание) */
+    #screen4 {
+      z-index: 30;
+    }
+
+    .dim-final-text {
+      color: rgba(182, 204, 228, 0.46);
+      font-size: 1.25rem;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-shadow: 0 0 22px rgba(145, 178, 214, 0.35);
+      opacity: 0;
+      text-align: center;
+      will-change: opacity, transform, filter;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Фоновые мягкие пятна -->
+  <div class="ambient-orb orb-1"></div>
+  <div class="ambient-orb orb-2"></div>
+  <div id="darkOverlay"></div>
+
+  <!-- ЭКРАН 1: Таймер и убегающая кнопка -->
+  <div class="screen initial-active" id="screen1">
+    <div class="center-box" id="box1">
+      <h1>Примешь мое поздравление?</h1>
+      <p class="timer-text" id="timerText">У тебя есть 10 секунд...</p>
+      <div class="timer-bar-wrap">
+        <div class="timer-bar" id="timerBar"></div>
+      </div>
+      <div class="btn-group" id="btnGroup1">
+        <button class="btn btn-primary" id="yesBtn">Да</button>
+        <button class="btn btn-secondary" id="noBtn">Нет</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ЭКРАН 2: Таблички поддержки по краям -->
+  <div class="screen" id="screen2">
+    <div class="tags-container">
+      <div class="support-tag tag-1">не хрусти</div>
+      <div class="support-tag tag-2">последнюю неделю ты раздосадованная</div>
+      <div class="support-tag tag-3">Не стоит перешивать</div>
+      <div class="support-tag tag-4">ни бий Миня пш начал с 4 октября </div>
+      <div class="support-tag tag-5">тута пусто хыы&gt;</div>
+      <div class="support-tag tag-6">&lt;дальше не придумал пон да ?&gt;</div>
+    </div>
+
+    <div class="center-box" id="box2">
+      <h1 style="margin-bottom: 24px;">Ну так уж и быть...</h1>
+      <button class="btn btn-primary" id="acceptBtn">одобренно </button>
+    </div>
+  </div>
+
+  <!-- ЭКРАН 3: Финальный вопрос (Окай / Отказано) -->
+  <div class="screen" id="screen3">
+    <div class="center-box" id="box3">
+      <h1 style="margin-bottom: 24px;">Не хрусти, подруня, Окай???</h1>
+      <div class="btn-group">
+        <button class="btn btn-primary" id="okayBtn">Окай</button>
+        <button class="btn btn-secondary" id="finalNoBtn">Отказано</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ЭКРАН 4: Темнота и тусклый свет -->
+  <div class="screen" id="screen4">
+    <div class="dim-final-text" id="finalText">Услышал, родной</div>
+  </div>
+
+  <script>
+    const screen1 = document.getElementById('screen1');
+    const screen2 = document.getElementById('screen2');
+    const screen3 = document.getElementById('screen3');
+    const screen4 = document.getElementById('screen4');
+    const darkOverlay = document.getElementById('darkOverlay');
+
+    const yesBtn = document.getElementById('yesBtn');
+    const noBtn = document.getElementById('noBtn');
+    const acceptBtn = document.getElementById('acceptBtn');
+    const okayBtn = document.getElementById('okayBtn');
+    const finalNoBtn = document.getElementById('finalNoBtn');
+    const finalText = document.getElementById('finalText');
+    const timerText = document.getElementById('timerText');
+    const timerBar = document.getElementById('timerBar');
+
+    // Плавное движение фоновых бликов
+    gsap.to('.orb-1', { x: 60, y: 40, duration: 7, repeat: -1, yoyo: true, ease: 'sine.inOut' });
+    gsap.to('.orb-2', { x: -50, y: -50, duration: 8, repeat: -1, yoyo: true, ease: 'sine.inOut' });
+
+    // Плавное появление первой карточки при загрузке
+    gsap.fromTo('#box1',
+      { y: 24, opacity: 0, scale: 0.95 },
+      { y: 0, opacity: 1, scale: 1, duration: 0.9, ease: 'power3.out' }
+    );
+
+    const noPhrases = [
+      'Ты уверена?',
+      'Подумай еще',
+      'Ну нажми Да',
+      'Серьёзно?',
+      'Хорошая попытка',
+      'Я настаиваю'
+    ];
+    let noIndex = 0;
+    let yesScale = 1;
+    let isScreen1Active = true;
+
+    // 1. Нажатие на «Нет» на первом экране
+    noBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      noBtn.textContent = noPhrases[noIndex % noPhrases.length];
+      noIndex++;
+
+      // Упругое покачивание кнопки «Нет»
+      gsap.fromTo(noBtn, { scale: 0.9 }, { scale: 1, duration: 0.45, ease: 'elastic.out(1.2, 0.4)' });
+
+      // Увеличение кнопки «Да»
+      if (yesScale < 1.45) {
+        yesScale += 0.08;
+        gsap.to(yesBtn, { scale: yesScale, duration: 0.5, ease: 'back.out(2)' });
+      }
+    });
+
+    // 2. Плавный побег кнопки «Да» через GSAP
+    function evadeYesButton(e) {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      if (!isScreen1Active) return;
+
+      // При первом побеге оставляем невидимую копию на месте, чтобы макет не дернулся
+      if (!yesBtn.classList.contains('runaway')) {
+        const rect = yesBtn.getBoundingClientRect();
+        const placeholder = yesBtn.cloneNode(true);
+        placeholder.removeAttribute('id');
+        placeholder.classList.add('btn-placeholder');
+        yesBtn.parentNode.insertBefore(placeholder, yesBtn);
+
+        yesBtn.classList.add('runaway');
+        document.body.appendChild(yesBtn);
+        gsap.set(yesBtn, { x: rect.left, y: rect.top });
+      }
+
+      const pad = 24;
+      const btnWidth = yesBtn.offsetWidth * yesScale;
+      const btnHeight = yesBtn.offsetHeight * yesScale;
+
+      const maxX = Math.max(pad, window.innerWidth - btnWidth - pad);
+      const maxY = Math.max(pad, window.innerHeight - btnHeight - pad);
+
+      const newX = Math.floor(Math.random() * (maxX - pad + 1)) + pad;
+      const newY = Math.floor(Math.random() * (maxY - pad + 1)) + pad;
+      const randomAngle = (Math.random() - 0.5) * 14;
+
+      gsap.to(yesBtn, {
+        x: newX,
+        y: newY,
+        rotation: randomAngle,
+        scale: yesScale,
+        duration: 0.36,
+        ease: 'power3.out',
+        overwrite: 'auto'
+      });
+    }
+
+    ['pointerdown', 'touchstart', 'mouseenter', 'click'].forEach(evt => {
+      yesBtn.addEventListener(evt, evadeYesButton, { passive: false });
+    });
+
+    // 3. Таймер на 10 секунд
+    gsap.to(timerBar, {
+      scaleX: 0,
+      duration: 10,
+      ease: 'none'
+    });
+
+    const counterObj = { val: 10 };
+    gsap.to(counterObj, {
+      val: 0,
+      duration: 10,
+      ease: 'none',
+      onUpdate: () => {
+        const sec = Math.ceil(counterObj.val);
+        timerText.textContent = `У тебя есть ${sec} сек...`;
+      },
+      onComplete: () => {
+        goToScreen2();
+      }
+    });
+
+    // Универсальный плавный переход между экранами
+    function transitionScreens(fromEl, toEl, onToReady) {
+      const tl = gsap.timeline();
+
+      tl.to(fromEl, {
+        opacity: 0,
+        scale: 0.94,
+        filter: 'blur(8px)',
+        duration: 0.55,
+        ease: 'power2.inOut',
+        onComplete: () => {
+          fromEl.style.visibility = 'hidden';
+        }
+      });
+
+      tl.set(toEl, { visibility: 'visible', opacity: 0, scale: 1.04, filter: 'blur(8px)' }, '-=0.2');
+
+      tl.to(toEl, {
+        opacity: 1,
+        scale: 1,
+        filter: 'blur(0px)',
+        duration: 0.7,
+        ease: 'power3.out',
+        onStart: () => {
+          if (onToReady) onToReady();
+        }
+      });
+    }
+
+    function goToScreen2() {
+      isScreen1Active = false;
+
+      // Плавно растворяем убегающую кнопку «Да»
+      gsap.to(yesBtn, {
+        opacity: 0,
+        scale: 0.6,
+        filter: 'blur(6px)',
+        duration: 0.45,
+        ease: 'power2.in',
+        onComplete: () => yesBtn.remove()
+      });
+
+      transitionScreens(screen1, screen2, () => {
+        const tags = document.querySelectorAll('.support-tag');
+
+        // Каскадное появление табличек поддержки
+        gsap.fromTo(tags,
+          { opacity: 0, y: 20, scale: 0.85 },
+          {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            duration: 0.75,
+            stagger: 0.12,
+            ease: 'back.out(1.6)',
+            onComplete: () => {
+              // Невесомое покачивание каждой таблички
+              tags.forEach((tag, i) => {
+                gsap.to(tag, {
+                  y: (i % 2 === 0 ? -9 : 9),
+                  x: (i % 2 === 0 ? 5 : -5),
+                  rotation: (i % 2 === 0 ? 2.5 : -2.5),
+                  duration: 2.6 + (i * 0.25),
+                  repeat: -1,
+                  yoyo: true,
+                  ease: 'sine.inOut'
+                });
+              });
+            }
+          }
+        );
+      });
+    }
+
+    // Переход со 2-го на 3-й экран
+    acceptBtn.addEventListener('click', () => {
+      gsap.to(acceptBtn, { scale: 0.93, duration: 0.12, yoyo: true, repeat: 1 });
+      transitionScreens(screen2, screen3);
+    });
+
+    // Финальный переход (общая функция для «Окай» и «Нет»)
+    function triggerFinalEnding(messageText) {
+      finalText.textContent = messageText;
+
+      const tl = gsap.timeline();
+
+      // Гасим 3-й экран и погружаем фон в темноту
+      tl.to(screen3, {
+        opacity: 0,
+        scale: 0.94,
+        filter: 'blur(10px)',
+        duration: 0.8,
+        ease: 'power2.inOut',
+        onComplete: () => {
+          screen3.style.visibility = 'hidden';
+        }
+      }, 0);
+
+      tl.to(darkOverlay, {
+        opacity: 1,
+        duration: 1.5,
+        ease: 'power2.inOut'
+      }, 0.15);
+
+      // Включаем 4-й экран и проявляем тусклую надпись
+      tl.set(screen4, { visibility: 'visible', opacity: 1 });
+
+      tl.fromTo(finalText,
+        { opacity: 0, scale: 0.92, filter: 'blur(8px)' },
+        {
+          opacity: 1,
+          scale: 1,
+          filter: 'blur(0px)',
+          duration: 2.2,
+          ease: 'power2.out'
+        },
+        '+=0.2'
+      );
+
+      // Легкое дыхание тусклого свечения
+      tl.to(finalText, {
+        opacity: 0.32,
+        duration: 2.2,
+        repeat: -1,
+        yoyo: true,
+        ease: 'sine.inOut'
+      });
+
+      // Попытка закрыть вкладку через 3.8 секунды после появления текста
+      setTimeout(() => {
+        window.open('', '_self', '');
+        window.close();
+      }, 5200);
+    }
+
+    // Клик на «Окай» -> «Услышал, родной»
+    okayBtn.addEventListener('click', () => {
+      triggerFinalEnding('Услышал, родной');
+    });
+
+    // Клик на «Нет» -> «Динаху»
+    finalNoBtn.addEventListener('click', () => {
+      triggerFinalEnding('Динаху');
+    });
+  </script>
+</body>
+</html>
